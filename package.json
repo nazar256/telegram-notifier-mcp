@@ -1,0 +1,25 @@
+{
+  "name": "telegram-notifier-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "wrangler dev",
+    "deploy": "npm run test && npm run typecheck && wrangler deploy"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "jose": "6.2.3",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260502.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.5",
+    "wrangler": "4.87.0"
+  }
+}

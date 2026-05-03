@@ -131,18 +131,73 @@ export async function handleMcpRequest(request: Request, config: AppConfig): Pro
 
   await server.connect(transport);
 
+  let cleanedUp = false;
+  const onAbort = (): void => {
+    void cleanup();
+  };
+  const cleanup = async (): Promise<void> => {
+    if (cleanedUp) {
+      return;
+    }
+    cleanedUp = true;
+    request.signal.removeEventListener("abort", onAbort);
+    await server.close().catch(() => undefined);
+    await transport.close().catch(() => undefined);
+  };
+
+  // For streaming responses (SSE), the response body can continue producing bytes
+  // after this function returns. We tie cleanup to client disconnect.
+  request.signal.addEventListener("abort", onAbort);
+
+  const wrapBodyWithCleanup = (response: Response): Response => {
+    const originalBody = response.body;
+    if (!originalBody) {
+      return response;
+    }
+
+    const reader = originalBody.getReader();
+
+    const wrapped = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        try {
+          const { done, value } = await reader.read();
+          if (done) {
+            await cleanup();
+            controller.close();
+            return;
+          }
+          controller.enqueue(value);
+        } catch (error) {
+          await cleanup();
+          controller.error(error);
+        }
+      },
+      async cancel(reason) {
+        await cleanup();
+        await reader.cancel(reason).catch(() => undefined);
+      },
+    });
+
+    return new Response(wrapped, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: new Headers(response.headers),
+    });
+  };
+
   try {
     const response = await transport.handleRequest(request);
     const contentType = response.headers.get("content-type") ?? "";
     if (contentType.includes("text/event-stream")) {
-      return response;
+      return wrapBodyWithCleanup(response);
     }
 
     const cloned = response.clone();
     const body = await cloned.arrayBuffer();
+    await cleanup();
     return new Response(body, { status: response.status, headers: response.headers });
-  } finally {
-    await server.close().catch(() => undefined);
-    await transport.close().catch(() => undefined);
+  } catch (error) {
+    await cleanup();
+    throw error;
   }
 }

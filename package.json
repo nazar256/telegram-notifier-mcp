@@ -1,8 +1,29 @@
 {
   "name": "telegram-notifier-mcp",
   "version": "0.1.0",
+  "description": "Stateless Cloudflare Worker MCP gateway for sending Telegram notifications from ChatGPT via the Telegram Bot API.",
   "private": true,
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nazar256/telegram-notifier-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nazar256/telegram-notifier-mcp/issues"
+  },
+  "homepage": "https://github.com/nazar256/telegram-notifier-mcp#readme",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "telegram",
+    "chatgpt",
+    "cloudflare-workers",
+    "oauth"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",

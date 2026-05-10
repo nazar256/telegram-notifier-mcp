@@ -10,9 +10,21 @@ describe("mcp server", () => {
 
   it("returns health even when config is invalid", async () => {
     const response = await handleRequest(new Request("https://example.com/health"), {});
-    expect(response.status).toBe(200);
-    const json = (await response.json()) as { ok: boolean };
+    expect(response.status).toBe(503);
+    const json = (await response.json()) as { ok: boolean; error?: string };
     expect(json.ok).toBe(false);
+    expect(json.error).toBe("server_misconfigured");
+  });
+
+  it("derives production origin from the incoming request when issuer vars are omitted", async () => {
+    const env = makeEnv({ OAUTH_ISSUER: undefined, MCP_RESOURCE: undefined, MCP_AUDIENCE: undefined });
+    const response = await handleRequest(new Request("https://derived.example.workers.dev/"), env);
+    expect(response.status).toBe(200);
+
+    const json = (await response.json()) as { mcp_endpoint: string; authorization_server: string; resource: string };
+    expect(json.authorization_server).toBe("https://derived.example.workers.dev");
+    expect(json.mcp_endpoint).toBe("https://derived.example.workers.dev/mcp");
+    expect(json.resource).toBe("https://derived.example.workers.dev/mcp");
   });
 
   it("returns 401 with WWW-Authenticate when /mcp is unauthenticated", async () => {

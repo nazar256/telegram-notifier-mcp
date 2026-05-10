@@ -49,14 +49,32 @@ interface RenderPageOptions {
 function html(body: string, status = 200): Response {
   return new Response(body, {
     status,
-    headers: { "content-type": "text/html; charset=utf-8" },
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store, max-age=0",
+      pragma: "no-cache",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "no-referrer",
+      "content-security-policy": [
+        "default-src 'none'",
+        "style-src 'unsafe-inline'",
+        "form-action 'self'",
+        "base-uri 'none'",
+        "frame-ancestors 'none'",
+      ].join('; '),
+    },
   });
 }
 
 function redirect(url: string): Response {
   return new Response(null, {
     status: 302,
-    headers: { location: url },
+    headers: {
+      location: url,
+      "cache-control": "no-store, max-age=0",
+      pragma: "no-cache",
+    },
   });
 }
 
@@ -66,7 +84,8 @@ function renderAuthorizePage(options: RenderPageOptions): string {
     : "";
 
   const checked = options.sendTestMessage ? "checked" : "";
-  const customVisible = (options.ttlChoice ?? "365") === "custom";
+  const selectedTtlChoice = options.ttlChoice ?? "90";
+  const customVisible = selectedTtlChoice === "custom";
 
   return `<!doctype html>
 <html lang="en">
@@ -101,14 +120,14 @@ function renderAuthorizePage(options: RenderPageOptions): string {
 
       <label for="access_token_ttl_choice"><strong>Access-token duration</strong></label>
       <select id="access_token_ttl_choice" name="access_token_ttl_choice" style="display:block;width:100%;padding:12px;margin:8px 0 12px 0;box-sizing:border-box;">
-        <option value="30" ${(options.ttlChoice ?? "365") === "30" ? "selected" : ""}>30 days</option>
-        <option value="90" ${(options.ttlChoice ?? "365") === "90" ? "selected" : ""}>90 days</option>
-        <option value="365" ${(options.ttlChoice ?? "365") === "365" ? "selected" : ""}>365 days</option>
+        <option value="30" ${selectedTtlChoice === "30" ? "selected" : ""}>30 days</option>
+        <option value="90" ${selectedTtlChoice === "90" ? "selected" : ""}>90 days</option>
+        <option value="365" ${selectedTtlChoice === "365" ? "selected" : ""}>365 days</option>
         <option value="custom" ${customVisible ? "selected" : ""}>Custom</option>
       </select>
 
       <label for="custom_access_token_ttl_days"><strong>Custom days</strong></label>
-      <input id="custom_access_token_ttl_days" name="custom_access_token_ttl_days" type="number" min="1" max="3650" value="${escapeHtml(options.customTtlDays ?? "")}" style="display:block;width:100%;padding:12px;margin:8px 0 16px 0;box-sizing:border-box;" />
+      <input id="custom_access_token_ttl_days" name="custom_access_token_ttl_days" type="number" min="1" max="365" value="${escapeHtml(options.customTtlDays ?? "")}" style="display:block;width:100%;padding:12px;margin:8px 0 16px 0;box-sizing:border-box;" />
 
       <label style="display:block;margin:0 0 16px 0;">
         <input type="checkbox" name="send_test_message" value="on" ${checked} />
@@ -245,12 +264,12 @@ export async function handleAuthorizePost(request: Request, config: AppConfig): 
     });
   }
 
-    let accessTokenTtlSeconds: number;
-    try {
-      accessTokenTtlSeconds = resolveRequestedAccessTokenTtlSeconds(form, config.accessTokenTtlSeconds);
-    } catch (error) {
-      return renderAuthorizeForm(oauth, config, {
-        error: error instanceof Error ? error.message : "Invalid access-token duration.",
+  let accessTokenTtlSeconds: number;
+  try {
+    accessTokenTtlSeconds = resolveRequestedAccessTokenTtlSeconds(form, config.accessTokenTtlSeconds);
+  } catch (error) {
+    return renderAuthorizeForm(oauth, config, {
+      error: error instanceof Error ? error.message : "Invalid access-token duration.",
       manualChatId: form.telegram_chat_id,
       ttlChoice: form.access_token_ttl_choice,
       customTtlDays: form.custom_access_token_ttl_days,

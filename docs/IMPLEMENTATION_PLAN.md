@@ -25,9 +25,9 @@
 | T11 | Implement `send_telegram_notification` tool | done | T09, T10 | `tests/mcp.server.test.ts` |
 | T12 | Add README, deployment docs, and env examples | done | T03-T11 | README added; smoke commands documented |
 | T13 | Record durable decisions/ADRs | done | T02-T11 | `docs/DECISIONS.md` and ADR files added |
-| T14 | Run validation and record evidence; update handoff docs | in_progress | T03-T13 | Passed `npm test`, `npm run typecheck`, local `wrangler dev` smoke checks, browser authorize-page validation without OAuth `state`, and deployed-worker public endpoint checks; external Telegram/ChatGPT smoke tests still pending |
+| T14 | Run validation and record evidence; update handoff docs | done | T03-T13 | Passed `npm test`, `npm run typecheck`, local `wrangler dev` smoke checks, browser authorize-page validation without OAuth `state`, deployed-worker public endpoint checks, `mcpc` OAuth/tool-call smoke test, and ChatGPT connector OAuth/tool execution |
 
 ## Notes
 
 - Refresh tokens may be omitted in v1 if ChatGPT compatibility works without them; if omitted, metadata must not advertise them and docs must explain why.
-- Real Telegram smoke validation is manual because it needs user-supplied bot credentials.
+- Real Telegram smoke validation is manual because it needs user-supplied bot credentials; a public deployment has been validated with `mcpc` and ChatGPT.

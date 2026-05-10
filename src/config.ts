@@ -2,20 +2,22 @@ import { z } from "zod";
 
 const rawEnvSchema = z.object({
   ENVIRONMENT: z.enum(["development", "production", "test"]).default("production"),
-  OAUTH_ISSUER: z.string().min(1),
-  MCP_RESOURCE: z.string().min(1),
-  MCP_AUDIENCE: z.string().min(1),
+  OAUTH_ISSUER: z.string().min(1).optional(),
+  MCP_RESOURCE: z.string().min(1).optional(),
+  MCP_AUDIENCE: z.string().min(1).optional(),
   OAUTH_REDIRECT_HTTPS_HOSTS: z.string().min(1),
   OAUTH_JWT_SIGNING_KEY_B64: z.string().min(1),
   UPSTREAM_CONFIG_ENC_KEY_B64: z.string().min(1),
   CSRF_SIGNING_KEY_B64: z.string().min(1),
-  ACCESS_TOKEN_TTL_SECONDS: z.string().optional().default("31536000"),
+  ACCESS_TOKEN_TTL_SECONDS: z.string().optional().default("7776000"),
   AUTH_CODE_TTL_SECONDS: z.string().optional().default("120"),
 });
 
 export const OAUTH_SCOPE = "telegram.notify";
 export const ACCESS_TOKEN_TTL_PRESETS_DAYS = [30, 90, 365] as const;
-export const MAX_CUSTOM_ACCESS_TOKEN_TTL_DAYS = 3650;
+export const MAX_CUSTOM_ACCESS_TOKEN_TTL_DAYS = 365;
+export const DEFAULT_ACCESS_TOKEN_TTL_SECONDS = 90 * 24 * 60 * 60;
+export const MAX_ACCESS_TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60;
 
 export interface AppConfig {
   environment: "development" | "production" | "test";
@@ -63,6 +65,26 @@ function parseUrl(value: string, label: string): URL {
   }
 }
 
+function resolveRuntimeOrigin(runtimeUrl?: string): string | undefined {
+  if (!runtimeUrl) {
+    return undefined;
+  }
+
+  try {
+    return new URL(runtimeUrl).origin;
+  } catch {
+    throw new Error("Runtime request URL must be a valid absolute URL");
+  }
+}
+
+function resolveUrl(value: string | undefined, fallback: string | undefined, label: string): URL {
+  const candidate = value ?? fallback;
+  if (!candidate) {
+    throw new Error(`${label} must be set when runtime origin is unavailable`);
+  }
+  return parseUrl(candidate, label);
+}
+
 function parseTtl(value: string, label: string, min: number, max: number): number {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
@@ -84,14 +106,15 @@ function validateMinimumKeyLength(bytes: Uint8Array, label: string, minBytes: nu
   }
 }
 
-export function parseConfig(env: Record<string, unknown>): AppConfig {
+export function parseConfig(env: Record<string, unknown>, runtimeUrl?: string): AppConfig {
   const parsed = rawEnvSchema.parse(env);
   const environment = parsed.ENVIRONMENT;
   const isDevelopment = environment !== "production";
+  const runtimeOrigin = resolveRuntimeOrigin(runtimeUrl);
 
-  const oauthIssuer = parseUrl(parsed.OAUTH_ISSUER, "OAUTH_ISSUER");
-  const mcpResource = parseUrl(parsed.MCP_RESOURCE, "MCP_RESOURCE");
-  const mcpAudience = parseUrl(parsed.MCP_AUDIENCE, "MCP_AUDIENCE");
+  const oauthIssuer = resolveUrl(parsed.OAUTH_ISSUER, runtimeOrigin, "OAUTH_ISSUER");
+  const mcpResource = resolveUrl(parsed.MCP_RESOURCE, new URL("/mcp", oauthIssuer).toString(), "MCP_RESOURCE");
+  const mcpAudience = resolveUrl(parsed.MCP_AUDIENCE, mcpResource.toString(), "MCP_AUDIENCE");
 
   if (!isDevelopment && oauthIssuer.protocol !== "https:") {
     throw new Error("OAUTH_ISSUER must be https in production");
@@ -125,15 +148,20 @@ export function parseConfig(env: Record<string, unknown>): AppConfig {
     jwtSigningKey,
     upstreamConfigEncKey,
     csrfSigningKey,
-    accessTokenTtlSeconds: parseTtl(parsed.ACCESS_TOKEN_TTL_SECONDS, "ACCESS_TOKEN_TTL_SECONDS", 86400, 315360000),
+    accessTokenTtlSeconds: parseTtl(
+      parsed.ACCESS_TOKEN_TTL_SECONDS,
+      "ACCESS_TOKEN_TTL_SECONDS",
+      86400,
+      MAX_ACCESS_TOKEN_TTL_SECONDS,
+    ),
     authCodeTtlSeconds: parseTtl(parsed.AUTH_CODE_TTL_SECONDS, "AUTH_CODE_TTL_SECONDS", 60, 300),
     scope: OAUTH_SCOPE,
   };
 }
 
-export function getConfig(env: Record<string, unknown>): ConfigResult {
+export function getConfig(env: Record<string, unknown>, runtimeUrl?: string): ConfigResult {
   try {
-    return { ok: true, config: parseConfig(env) };
+    return { ok: true, config: parseConfig(env, runtimeUrl) };
   } catch (error) {
     return {
       ok: false,

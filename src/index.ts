@@ -39,14 +39,16 @@ export interface WorkerEnv {
 
 async function handleRequest(request: Request, env: WorkerEnv): Promise<Response> {
   const url = new URL(request.url);
-  const configResult = getConfig(env as Record<string, unknown>);
+  const configResult = getConfig(env as Record<string, unknown>, request.url);
 
   if (url.pathname === "/health") {
-    return json({ ok: configResult.ok, config_error: configResult.error ?? null });
+    return configResult.ok
+      ? json({ ok: true })
+      : json({ ok: false, error: "server_misconfigured" }, 503);
   }
 
   if (!configResult.ok || !configResult.config) {
-    return json({ error: "server_misconfigured", error_description: configResult.error }, 500);
+    return json({ error: "server_misconfigured" }, 500);
   }
 
   const config = configResult.config;

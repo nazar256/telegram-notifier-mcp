@@ -2,11 +2,11 @@
 
 ## Current task
 
-Finish release completion for the stateless Cloudflare Worker Telegram notification MCP gateway: initialize/attach git, commit, push, and then perform external live validation against the deployed Worker.
+Publication-readiness cleanup for the stateless Cloudflare Worker Telegram notification MCP gateway.
 
 ## Current branch / environment
 
-- Branch: not a git repo yet
+- Branch: `main`
 - Runtime target: Cloudflare Workers
 - Package manager: npm
 
@@ -25,21 +25,23 @@ Finish release completion for the stateless Cloudflare Worker Telegram notificat
 - Passed `npm run typecheck` and `npm test`.
 - Passed local `wrangler dev --local` smoke checks for `/health`, metadata, and unauthenticated `/mcp`.
 - Verified in browser that `/authorize` renders correctly when `state` is omitted.
-- Deployed Worker successfully to `https://telegram-notifier-mcp.xyofn8h7t.workers.dev`.
+- Deployed Worker successfully and validated the public production path.
 - Verified deployed `/health`, auth metadata, protected resource metadata, and unauthenticated `/mcp` challenge.
+- Added and validated GitHub Actions CI/CD deploy workflow.
+- Fixed Wrangler CI Node version requirement.
+- Fixed Streamable HTTP SSE cleanup so ChatGPT tool calls do not hang.
+- Verified OAuth login and `send_telegram_notification` through `mcpc` against production.
+- Verified ChatGPT connector OAuth integration and Telegram message sending.
 
 ## Next
 
-- Initialize or attach the intended git repository.
-- Commit and push once the repo target is known.
-- Perform a real Telegram authorization flow using a live bot token and a private bot chat.
-- Validate ChatGPT custom remote MCP connector compatibility end-to-end.
+- Review and commit the publication-readiness cleanup.
+- Keep README / project-state validation evidence current after future production smoke tests.
 
 ## Blockers / risks
 
-- Real Telegram and ChatGPT end-to-end validation need external credentials/client interaction not available in this session.
-- The directory is not yet a git repo, so commit/push cannot happen until git is initialized or the intended repository is provided.
-- No existing GitHub repository named `nazar256/telegram-notifier-mcp` was found from this environment despite the user expectation that one already exists.
+- Stateless tokens are not centrally revocable; key rotation or expiration is the revocation mechanism for v1.
+- Keep OAuth redirect hosts narrow to intended clients before publishing/deploying forks.
 
 ## Important files
 
@@ -61,11 +63,11 @@ Finish release completion for the stateless Cloudflare Worker Telegram notificat
 - Passed: `npm test`
 - Passed: local `wrangler dev --local` smoke checks (`/health`, auth metadata, protected resource metadata, unauthenticated `/mcp`)
 - Passed: browser authorize-page render test with omitted OAuth `state`
-- Passed: deployed `https://telegram-notifier-mcp.xyofn8h7t.workers.dev/health`
+- Passed: deployed `/health`
 - Passed: deployed auth and protected-resource metadata endpoints
 - Passed: deployed unauthenticated `/mcp` returns `401` with `WWW-Authenticate`
-- Not run: live Telegram smoke test
-- Not run: live ChatGPT connector test
+- Passed: live OAuth + tool call through `mcpc`
+- Passed: live ChatGPT connector OAuth + Telegram tool execution
 
 ## Notes for the next agent
 

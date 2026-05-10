@@ -27,7 +27,7 @@ export const authorizeFormSchema = authorizeQuerySchema.extend({
   telegram_bot_token: z.string().optional().default(""),
   telegram_chat_id: z.string().optional(),
   send_test_message: z.union([z.literal("on"), z.literal("true")]).optional(),
-  access_token_ttl_choice: z.enum(["30", "90", "365", "custom"]).optional().default("365"),
+  access_token_ttl_choice: z.enum(["30", "90", "365", "custom"]).optional().default("90"),
   custom_access_token_ttl_days: z.string().optional(),
 });
 
@@ -53,7 +53,7 @@ export function resolveRequestedAccessTokenTtlDays(input: {
   access_token_ttl_choice?: string;
   custom_access_token_ttl_days?: string;
 }): number {
-  const choice = input.access_token_ttl_choice ?? "365";
+  const choice = input.access_token_ttl_choice ?? "90";
   if (choice !== "custom") {
     const days = Number.parseInt(choice, 10);
     if (!ACCESS_TOKEN_TTL_PRESETS_DAYS.includes(days as (typeof ACCESS_TOKEN_TTL_PRESETS_DAYS)[number])) {

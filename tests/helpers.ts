@@ -33,7 +33,7 @@ export function makeEnv(overrides: Partial<WorkerEnv> = {}): WorkerEnv {
     OAUTH_JWT_SIGNING_KEY_B64: toBase64(new Uint8Array(32).fill(1)),
     UPSTREAM_CONFIG_ENC_KEY_B64: toBase64(new Uint8Array(32).fill(2)),
     CSRF_SIGNING_KEY_B64: toBase64(new Uint8Array(32).fill(3)),
-    ACCESS_TOKEN_TTL_SECONDS: "31536000",
+    ACCESS_TOKEN_TTL_SECONDS: "7776000",
     AUTH_CODE_TTL_SECONDS: "120",
     ...overrides,
   };

@@ -1,6 +1,6 @@
 # telegram-notifier-mcp
 
-Stateless Streamable HTTP MCP gateway for sending Telegram notifications from ChatGPT through the Telegram Bot API.
+Stateless Streamable HTTP MCP gateway for sending Telegram notifications from ChatGPT through the Telegram Bot API. The server runs as a Cloudflare Worker, stores no user config server-side, and carries encrypted Telegram configuration inside OAuth JWT artifacts.
 
 ## What this server does
 
@@ -30,9 +30,13 @@ This step matters because a Telegram bot token alone is not enough to send messa
 
 ## ChatGPT connector settings
 
-- **MCP Server URL:** `https://telegram-notifier-mcp.xyofn8h7t.workers.dev/mcp`
-- **Authorization server base URL:** `https://telegram-notifier-mcp.xyofn8h7t.workers.dev`
-- **Resource:** `https://telegram-notifier-mcp.xyofn8h7t.workers.dev/mcp`
+For any deployment, use your Worker origin:
+
+- **MCP Server URL:** `https://your-worker.example.workers.dev/mcp`
+- **Authorization server base URL:** `https://your-worker.example.workers.dev`
+- **Resource:** `https://your-worker.example.workers.dev/mcp`
+
+By default, this project derives `OAUTH_ISSUER`, `MCP_RESOURCE`, and `MCP_AUDIENCE` from the incoming request origin when they are not explicitly set.
 
 ## Required Worker secrets
 
@@ -58,17 +62,16 @@ Set these in `wrangler.toml` or your Cloudflare environment:
 
 ```text
 ENVIRONMENT=production
-OAUTH_ISSUER=https://your-worker.example.com
-MCP_RESOURCE=https://your-worker.example.com/mcp
-MCP_AUDIENCE=https://your-worker.example.com/mcp
-OAUTH_REDIRECT_HTTPS_HOSTS=chatgpt.com,*.chatgpt.com,chat.openai.com,*.openai.com,github.com,*.github.com,claude.ai,*.claude.ai,anthropic.com,*.anthropic.com
-ACCESS_TOKEN_TTL_SECONDS=31536000
+OAUTH_REDIRECT_HTTPS_HOSTS=chatgpt.com,*.chatgpt.com,chat.openai.com,*.chat.openai.com
+ACCESS_TOKEN_TTL_SECONDS=7776000
 AUTH_CODE_TTL_SECONDS=120
 ```
 
 Notes:
 
-- `ACCESS_TOKEN_TTL_SECONDS` is the server-side maximum lifetime the authorize UI may mint. The UI can request shorter durations (30/90/365/custom) but not exceed this cap.
+- `OAUTH_ISSUER`, `MCP_RESOURCE`, and `MCP_AUDIENCE` are optional if your Worker is served directly from its public origin. Set them only when you need explicit override values.
+- `ACCESS_TOKEN_TTL_SECONDS` is the server-side maximum lifetime the authorize UI may mint. The default is 90 days. The UI can request shorter durations (30/90/365/custom), but neither the UI nor the server config allows more than 365 days in v1.
+- Keep `OAUTH_REDIRECT_HTTPS_HOSTS` as narrow as your intended clients allow. The checked-in default only covers ChatGPT/OpenAI HTTPS redirect hosts; loopback HTTP callbacks for native-client OAuth tooling are allowed separately by code.
 - Refresh tokens are intentionally not implemented in v1, so there is no refresh-token TTL setting to tune.
 - Loopback HTTP redirect URIs (`localhost`, `127.0.0.1`, `::1`) are allowed for OAuth native clients, including production deployments, to support standards-compliant local callback handlers.
 
@@ -100,6 +103,22 @@ Deploy only after tests and typecheck pass:
 ```bash
 npm run deploy
 ```
+
+### CI/CD
+
+The GitHub Actions workflow in `.github/workflows/deploy.yml` runs typecheck/tests on every push to `main`, then deploys to Cloudflare Workers. It expects these GitHub repository secrets:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+On first deployment, the workflow bootstraps missing Worker secrets with random 32-byte base64 values. If you restore from backup, rotate keys manually, or migrate an existing deployment, set the Worker secrets deliberately with `wrangler secret put` before deploying.
+
+## Before publishing or forking
+
+- Narrow `OAUTH_REDIRECT_HTTPS_HOSTS` to only the OAuth clients you intend to support.
+- Decide whether `workers_dev = true` is appropriate for your deployment, or whether you want to use a custom domain instead.
+- Keep `ACCESS_TOKEN_TTL_SECONDS` as short as your use case allows.
+- Remember that rotating Worker signing/encryption keys invalidates existing OAuth artifacts and access tokens.
 
 ## OAuth and authorization UX
 
@@ -153,6 +172,7 @@ Expected unauthenticated `/mcp` behavior:
 - Key rotation needs a migration plan or forced reconnect.
 - Best-effort in-memory throttling would not be globally reliable on Workers.
 - Telegram messages go through Telegram infrastructure; do not use this tool for secrets, credentials, customer data, or sensitive dumps.
+- Anyone with a valid access token can send messages to the Telegram chat configured during authorization until that token expires or server keys are rotated. Keep token lifetimes as short as practical for your deployment.
 
 ## Validation status
 
@@ -169,12 +189,11 @@ Verified locally:
 
 Verified on the deployed Worker:
 
-- `GET https://telegram-notifier-mcp.xyofn8h7t.workers.dev/health`
-- `GET https://telegram-notifier-mcp.xyofn8h7t.workers.dev/.well-known/oauth-authorization-server`
-- `GET https://telegram-notifier-mcp.xyofn8h7t.workers.dev/.well-known/oauth-protected-resource`
-- unauthenticated `GET https://telegram-notifier-mcp.xyofn8h7t.workers.dev/mcp` returns `401` with `WWW-Authenticate` and `resource_metadata`
+- public health/metadata checks against the current deployed Worker origin
+- unauthenticated deployed `/mcp` returns `401` with `WWW-Authenticate` and `resource_metadata`
+- OAuth login and `send_telegram_notification` tool call via `mcpc`
+- ChatGPT connector OAuth integration and tool execution after SSE lifecycle cleanup
 
-Not yet verified in this environment:
+## Security
 
-- real Telegram bot end-to-end authorization
-- real ChatGPT connector flow
+See [SECURITY.md](./SECURITY.md).

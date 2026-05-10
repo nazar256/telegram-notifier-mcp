@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Phase 1 - core implementation complete, deployed to Cloudflare Workers, pending git history/push and external end-to-end validation.
+Phase 1 - core implementation complete, deployed to Cloudflare Workers, pushed to GitHub, and externally validated with ChatGPT + Telegram.
 
 ## Scope
 
@@ -10,7 +10,7 @@ Build a stateless Streamable HTTP MCP gateway on Cloudflare Workers that authent
 
 ## Progress summary
 
-Repository scaffold, core Worker implementation, tests, and operator docs are in place. Local typecheck and test suite pass. Local `wrangler dev` smoke checks pass, including OAuth metadata and unauthenticated `/mcp`. Browser validation also confirmed the authorize page now renders correctly when OAuth `state` is omitted by a native client. The Worker is now deployed publicly at `https://telegram-notifier-mcp.xyofn8h7t.workers.dev`, and public health/metadata/unauthenticated MCP checks pass. Real Telegram credentials and real ChatGPT connector tool execution remain unverified in this environment.
+Repository scaffold, core Worker implementation, tests, CI/CD, and operator docs are in place. Local typecheck and test suite pass. A public deployment has been validated end-to-end: health/metadata/unauthenticated MCP checks pass, OAuth login works with `mcpc`, the `send_telegram_notification` MCP tool sends Telegram messages, and ChatGPT connector OAuth + tool execution has been validated.
 
 ## Completed
 
@@ -31,24 +31,25 @@ Repository scaffold, core Worker implementation, tests, and operator docs are in
 - Added OAuth token response cache-busting headers.
 - Pinned dependency versions for reproducible builds.
 - Allowed standards-compliant loopback HTTP redirect URIs for native clients in production.
-- Deployed the Worker to `https://telegram-notifier-mcp.xyofn8h7t.workers.dev`.
+- Deployed the Worker publicly and validated the production path end-to-end.
 - Verified public `/health`, authorization metadata, protected resource metadata, and unauthenticated `/mcp` challenge on the deployed Worker.
+- Added GitHub Actions CI/CD workflow for typecheck/tests and Cloudflare Workers deploy.
+- Fixed CI Node version for current Wrangler requirements.
+- Fixed MCP Streamable HTTP SSE lifecycle cleanup so ChatGPT tool calls complete instead of hanging.
+- Verified OAuth login and tool call with `mcpc` against the deployed Worker.
+- Verified ChatGPT connector OAuth integration and Telegram message sending.
 
 ## In progress
 
-- Git history/push plus external live validation.
+- Publication-readiness cleanup and final operator-doc review.
 
 ## Remaining
 
-- Perform a real Telegram authorization + tool-call smoke test with a live bot token.
-- Perform a real ChatGPT connector compatibility check.
-- Initialize git history and push to the intended GitHub repository.
+- Optional: add more lifecycle-focused SSE tests if future changes touch `/mcp` streaming behavior.
 
 ## Blocked / unresolved
 
-- Real Telegram and ChatGPT end-to-end validation require external credentials/client interaction not available in this session.
-- Repository is not yet a git repo, so commit/push cannot happen until git is initialized or an existing remote repo is specified.
-- No existing GitHub repository named `nazar256/telegram-notifier-mcp` was found from this environment despite the user expectation that one already exists.
+- None known for the current v1 publication scope.
 
 ## Decisions and links
 
@@ -63,15 +64,15 @@ Repository scaffold, core Worker implementation, tests, and operator docs are in
 - Passed: `npm test`
 - Passed: local `wrangler dev --local` smoke checks for `/health`, auth metadata, protected resource metadata, and unauthenticated `/mcp`
 - Passed: browser check of `/authorize` rendering with omitted OAuth `state`
-- Passed: deployed `https://telegram-notifier-mcp.xyofn8h7t.workers.dev/health`
-- Passed: deployed `https://telegram-notifier-mcp.xyofn8h7t.workers.dev/.well-known/oauth-authorization-server`
-- Passed: deployed `https://telegram-notifier-mcp.xyofn8h7t.workers.dev/.well-known/oauth-protected-resource`
+- Passed: deployed `/health`
+- Passed: deployed `/.well-known/oauth-authorization-server`
+- Passed: deployed `/.well-known/oauth-protected-resource`
 - Passed: deployed unauthenticated `GET /mcp` returns `401` with `WWW-Authenticate` and `resource_metadata`
-- Not run: real Telegram smoke test
-- Not run: real ChatGPT connector test
+- Passed: OAuth login and `send_telegram_notification` tool call via `mcpc`
+- Passed: ChatGPT connector OAuth integration and Telegram message sending
 
 ## Fresh-start instructions
 
-1. Initialize or attach the intended git repository before committing/pushing.
-2. Run one real Telegram end-to-end auth + tool-call validation with live credentials against the deployed Worker.
-3. Validate ChatGPT connector compatibility against the deployed Worker.
+1. Run `npm test` and `npm run typecheck` before publishing changes.
+2. If rotating Worker secrets, expect existing OAuth/access tokens to require reconnect.
+3. Keep `OAUTH_REDIRECT_HTTPS_HOSTS` narrowed to intended client redirect hosts.
